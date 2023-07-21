@@ -10,6 +10,7 @@ find scum channels with an OpenMote :)
 #include "leds.h"
 #include "uart.h"
 #include "sctimer.h"
+#include <stdio.h>
 
 //=========================== defines =========================================
 
@@ -282,7 +283,7 @@ void cb_scTimerCompare(void) {
 					break;
 				}
 			}
-			
+			/*
 			if (app_vars.rx_channel == RX_CHANNEL_MAX) { // last channel: switch to OpenMote TX mode (SCuM RX)
 				// switch to TX mode
 				app_vars.rx_tx = 1; // switch to TX mode
@@ -310,6 +311,7 @@ void cb_scTimerCompare(void) {
 				radio_rxEnable();
 				radio_rxNow();
 			}
+			*/
 		}
 	}
 	
@@ -424,7 +426,26 @@ uint8_t cb_uartRxCb(void) {
 
 //===== printing and storing nonsense
 void print_packet_received(void){
+	print_debug();
+	// app_vars.rxpk_len = 8
+	uint32_t adc_data = app_vars.rxpk_buf[0] + (app_vars.rxpk_buf[1]<<8) + (app_vars.rxpk_buf[2]<<16) + (app_vars.rxpk_buf[3]<<24);
+	uint32_t adc_data2 = app_vars.rxpk_buf[4] + (app_vars.rxpk_buf[5]<<8) + (app_vars.rxpk_buf[6]<<16) + (app_vars.rxpk_buf[7]<<24);
+	sprintf(app_vars.uart_txFrame, "%d\r\n%d\r\n", adc_data, adc_data2);
+	app_vars.uart_done 		 = 0;
+	app_vars.uart_lastTxByte = 0;
+
 	
+	app_vars.rx_valid_packet_counter++;
+	
+
+	// send app_vars.uart_txFrame over UART
+	uart_clearTxInterrupts();
+	uart_clearRxInterrupts();
+	uart_enableInterrupts();
+	uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
+	while (app_vars.uart_done==0); // busy wait to finish
+	uart_disableInterrupts();
+	/*
 	if ((app_vars.rxpk_buf[6]==0)&&(app_vars.rxpk_buf[7]==0)&&(app_vars.rxpk_buf[8]==0)) {
 		// packet got messed up for unknown reasons?
 		app_vars.uart_txFrame[0]	= 'F';
@@ -441,6 +462,7 @@ void print_packet_received(void){
 	}
 	
 	else {
+		
 		// store the received TX settings in the buffer
 		app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][0] = app_vars.rxpk_buf[6];
 		app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][1] = app_vars.rxpk_buf[7];
@@ -468,17 +490,10 @@ void print_packet_received(void){
 		app_vars.uart_done          = 0;
 		app_vars.uart_lastTxByte    = 0;
 		
-		app_vars.rx_valid_packet_counter++;
-		
 
-		// send app_vars.uart_txFrame over UART
-		uart_clearTxInterrupts();
-		uart_clearRxInterrupts();
-		uart_enableInterrupts();
-		uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
-		while (app_vars.uart_done==0); // busy wait to finish
-		uart_disableInterrupts();
+		
 	}
+	*/
 }
 
 void print_rx_timeout(void) {
