@@ -88,6 +88,9 @@ void print_debug(void);
 
 //=========================== main ============================================
 
+// built and bootloaded in conda environment like this:
+// scons board=openmote-b-24ghz toolchain=armgcc bootload=COM17 bsp_radio_scumhunt
+
 /**
 \brief The program starts executing here.
 */
@@ -141,6 +144,7 @@ int mote_main(void) {
 
         if (app_vars.rxpk_done==1) {
 			// if I get here, I just received a packet
+			print_debug();
 					
 			// packet received, update the timeout timer
 			if (app_vars.rx_tx == 0) { // only update timeout timer if we're in OpenMote RX mode

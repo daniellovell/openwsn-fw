@@ -3,7 +3,7 @@ import re
 import time
 
 # Open the serial port
-ser = serial.Serial('COM14', baudrate=115200)  # replace 'COM1' with your COM port
+ser = serial.Serial('COM17', baudrate=115200)  # replace 'COM1' with your COM port
 
 try:
     with open('data.txt', 'w') as f:
