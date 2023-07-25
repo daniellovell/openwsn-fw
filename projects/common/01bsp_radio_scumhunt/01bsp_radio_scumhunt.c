@@ -14,7 +14,7 @@ find scum channels with an OpenMote :)
 
 //=========================== defines =========================================
 
-#define LENGTH_PACKET        10+LENGTH_CRC // maximum length is 127 bytes
+#define LENGTH_PACKET        64+LENGTH_CRC // maximum length is 127 bytes
 #define LENGTH_PACKET_TX	 16+LENGTH_CRC
 #define RX_CHANNEL_START     17             // 24ghz: 11 = 2.405GHz, subghz: 11 = 865.325 in  FSK operating mode #1
 #define RX_CHANNEL_MAX		 18
@@ -144,7 +144,7 @@ int mote_main(void) {
 
         if (app_vars.rxpk_done==1) {
 			// if I get here, I just received a packet
-			print_debug();
+			//print_debug();
 					
 			// packet received, update the timeout timer
 			if (app_vars.rx_tx == 0) { // only update timeout timer if we're in OpenMote RX mode
@@ -430,18 +430,13 @@ uint8_t cb_uartRxCb(void) {
 
 //===== printing and storing nonsense
 void print_packet_received(void){
-	print_debug();
+	//print_debug();
 	// app_vars.rxpk_len = 8
-	uint32_t adc_data = app_vars.rxpk_buf[0] + (app_vars.rxpk_buf[1]<<8) + (app_vars.rxpk_buf[2]<<16) + (app_vars.rxpk_buf[3]<<24);
-	uint32_t adc_data2 = app_vars.rxpk_buf[4] + (app_vars.rxpk_buf[5]<<8) + (app_vars.rxpk_buf[6]<<16) + (app_vars.rxpk_buf[7]<<24);
-	sprintf(app_vars.uart_txFrame, "%d\r\n%d\r\n", adc_data, adc_data2);
+	/*
+	int32_t adc_data = app_vars.rxpk_buf[0] + (app_vars.rxpk_buf[0+1]<<8) + (app_vars.rxpk_buf[0+2]<<16) + (app_vars.rxpk_buf[0+3]<<24);
+	sprintf(app_vars.uart_txFrame, "%d\r\n", adc_data);
 	app_vars.uart_done 		 = 0;
 	app_vars.uart_lastTxByte = 0;
-
-	
-	app_vars.rx_valid_packet_counter++;
-	
-
 	// send app_vars.uart_txFrame over UART
 	uart_clearTxInterrupts();
 	uart_clearRxInterrupts();
@@ -449,6 +444,27 @@ void print_packet_received(void){
 	uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
 	while (app_vars.uart_done==0); // busy wait to finish
 	uart_disableInterrupts();
+	*/
+
+	for(uint32_t i = 0; i < app_vars.rxpk_len - 2; i += 4)
+	{
+		int32_t adc_data = app_vars.rxpk_buf[i] + (app_vars.rxpk_buf[i+1]<<8) + (app_vars.rxpk_buf[i+2]<<16) + (app_vars.rxpk_buf[i+3]<<24);
+		sprintf(app_vars.uart_txFrame, "%d\r\n", adc_data);
+		app_vars.uart_done 		 = 0;
+		app_vars.uart_lastTxByte = 0;
+		// send app_vars.uart_txFrame over UART
+		uart_clearTxInterrupts();
+		uart_clearRxInterrupts();
+		uart_enableInterrupts();
+		uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
+		while (app_vars.uart_done==0); // busy wait to finish
+		uart_disableInterrupts();
+	}
+
+		
+	app_vars.rx_valid_packet_counter++;
+	
+
 	/*
 	if ((app_vars.rxpk_buf[6]==0)&&(app_vars.rxpk_buf[7]==0)&&(app_vars.rxpk_buf[8]==0)) {
 		// packet got messed up for unknown reasons?

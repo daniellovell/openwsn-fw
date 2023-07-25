@@ -3,7 +3,7 @@ import re
 import time
 
 # Open the serial port
-ser = serial.Serial('COM17', baudrate=115200)  # replace 'COM1' with your COM port
+ser = serial.Serial('COM17', baudrate=1000000)  # replace 'COM1' with your COM port
 
 try:
     with open('data.txt', 'w') as f:
@@ -24,9 +24,8 @@ try:
             # Save the cleaned-up words to the file
             for word in words:
                 f.write(word + '\n')
-
             # Print a message every 0.1s to indicate that data is being received
-            if time.time() - last_print_time >= 0.1:
+            if time.time() - last_print_time >= 1:
                 print('Receiving data...')
                 last_print_time = time.time()
 

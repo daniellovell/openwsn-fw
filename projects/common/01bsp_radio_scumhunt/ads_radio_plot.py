@@ -11,7 +11,7 @@ fig, ax = plt.subplots()
 ax.plot(data)
 
 # Set the title and labels
-ax.set_title('UART-Transmitted ADC Data')
+ax.set_title('Radio-Transmitted ADC Data')
 ax.set_xlabel('Index')
 ax.set_ylabel('Value')
 
