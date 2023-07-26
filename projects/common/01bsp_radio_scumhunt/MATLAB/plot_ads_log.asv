@@ -2,22 +2,24 @@
 save('data.mat', 'data_struct');
 
 % Close the serial port
-if(exist('ser', 'var'))
-    ser.delete();
-    clear ser;
-end
+if(exist('ser'))
+ser.delete();
+clear ser;
 % Load the data
 load('data.mat');
 
 % Get the number of data points
 num_data_points = length(data_struct);
 
-data = [];
-lqi = [];
+% Preallocate arrays for time and data
+time = zeros(num_data_points, 1);
+data = zeros(num_data_points, length(data_struct(1).data));
+lqi = zeros(num_data_points, 1);
+
 % Extract the time, data, and LQI from the structure
-for i = 2:num_data_points
-    data = [data, data_struct(i).data(:)'];
-    lqi = [lqi, repmat(data_struct(i).lqi, 1, 8)];
+for i = 1:num_data_points
+    data(i) = data_struct(i).data;
+    lqi(i) = data_struct(i).lqi;
 end
 
 % Normalize LQI to the range [0, 1]
@@ -30,9 +32,10 @@ cmap = [linspace(1, 0, 256)', linspace(0, 1, 256)', zeros(256, 1)];
 figure;
 
 % Plot the data
-cmap(round(lqi*255)+1, :);
-scatter(1:length(data), data, 10, cmap(round(lqi*255)+1, :), 'filled');
-hold on;
+for i = 1:size(data, 2)
+    scatter(1:length(data), data, 10, cmap(round(lqi*255)+1, :), 'filled');
+    hold on;
+end
 
 % Set the color map
 colormap(cmap);

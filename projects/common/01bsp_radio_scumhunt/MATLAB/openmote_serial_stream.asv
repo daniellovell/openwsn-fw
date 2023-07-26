@@ -28,9 +28,7 @@ try
         packet = double(uint8(packet.char));
         if(length(packet) < 38)
             disp('Short packet');
-            continue;
-
-        end
+            e
 
         % Unpack counter_val manually
         counter_val = packet(1) + packet(2)*256 + packet(3)*65536 + packet(4)*16777216;
