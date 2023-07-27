@@ -18,7 +18,7 @@ find scum channels with an OpenMote :)
 #define LENGTH_PACKET_TX	 16+LENGTH_CRC
 #define RX_CHANNEL_START     17             // 24ghz: 11 = 2.405GHz, subghz: 11 = 865.325 in  FSK operating mode #1
 #define RX_CHANNEL_MAX		 18
-#define LENGTH_SERIAL_FRAME  40              // length of the serial frame
+#define LENGTH_SERIAL_FRAME  43              // length of the serial frame
 #define TIMER_PERIOD		 (32768>>7)		// (32768>>1) = 500ms @ 32kHz
 #define TIMER_PERIOD_RX		 (32768>>1)		// (32768>>8) = 7.8125ms @ 32kHz -> this is the ping timer when SCuM is transmitting (OpenMote receives)
 #define TIMER_PERIOD_TX		 (32768>>6)		// (32768>>1) = 500ms @ 32kHz -> this is the timeout timer when SCuM is receiving (OpenMote transmits and listens for ack)
@@ -180,6 +180,7 @@ int mote_main(void) {
 			}*/
 		}
 
+		/*
 		if (app_vars.txpk_txNow==1) {
 			// freq type only effects on scum port
 			radio_setFrequency(app_vars.rx_channel, FREQ_TX);
@@ -220,6 +221,7 @@ int mote_main(void) {
 			sctimer_setCompare(sctimer_readCounter() + TIMER_PERIOD_TX);
 
 		}
+		*/
     }
 }
 
@@ -433,13 +435,20 @@ void print_packet_received(void){
 
 	// Note that PORT_TIMER_WIDTH on OpenMote-b-24ghz is uint32_t 
 	uint32_t counter_val = sctimer_readCounter();
+	IntMasterDisable();
 	// Pack the counter, LQI, and RSSI in first
 	// then the data
 	uint8_t uart_head = 0;
+	// Preamble is "UCB"
+	app_vars.uart_txFrame[uart_head++] = 'U';
+	app_vars.uart_txFrame[uart_head++] = 'C';
+	app_vars.uart_txFrame[uart_head++] = 'B';
+	// Counter is 4 bytes
 	app_vars.uart_txFrame[uart_head++] = (uint8_t)(counter_val & 0xFF);
 	app_vars.uart_txFrame[uart_head++] = (uint8_t)((counter_val >> 8) & 0xFF);
 	app_vars.uart_txFrame[uart_head++] = (uint8_t)((counter_val >> 16) & 0xFF);
 	app_vars.uart_txFrame[uart_head++] = (uint8_t)((counter_val >> 24) & 0xFF);
+	// LQI and RSSI are 1 byte each
 	app_vars.uart_txFrame[uart_head++] = app_vars.rxpk_lqi;
 	app_vars.uart_txFrame[uart_head++] = app_vars.rxpk_rssi;
 	
@@ -454,6 +463,7 @@ void print_packet_received(void){
 	app_vars.uart_done 		 = 0;
 	app_vars.uart_lastTxByte = 0;
 	// send app_vars.uart_txFrame over UART
+	IntMasterEnable();
 	uart_clearTxInterrupts();
 	uart_clearRxInterrupts();
 	uart_enableInterrupts();

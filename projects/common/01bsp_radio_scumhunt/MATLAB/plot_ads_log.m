@@ -30,7 +30,7 @@ end
 
 
 % Normalize LQI to the range [0, 1]
-idx = lqi > 0;
+idx = abs(lqi) > 0;
 lqi(idx) = [];
 data(idx) = [];
 rssi(idx) = [];

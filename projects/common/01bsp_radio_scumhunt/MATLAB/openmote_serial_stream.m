@@ -7,7 +7,7 @@ if(exist('ser', 'var'))
 end
 
 % Create serial object
-ser = serialport('COM14', 1000000, 'Timeout', 60);
+ser = serialport('COM24', 115200, 'Timeout', 60);
 
 % Set the expected packet length (number of bytes)
 packet_length = 38; % 4 bytes for counter_val, 1 byte each for lqi and rssi, and 32 bytes for data
@@ -21,12 +21,19 @@ data_struct = struct('time', [], 'counter_val', [], 'lqi', [], 'rssi', [], 'data
 % Create a cleanup function
 cleanupObj = onCleanup(@()cleanup(ser, data_struct));
 
+err_ctr = 0;
+pre_buff = '';
+
 try
     while true
+        while(~strcmp(pre_buff, 'UCB'))
+            pre_buff = char(read(ser, 3, 'uint8'));
+        end
+        pre_buff = '';
         % Read a full packet from the serial port
-        packet = readline(ser);
-        packet = double(uint8(packet.char));
-        if(length(packet) < 38)
+        packet = read(ser, packet_length, "uint8");
+        packet = double(packet);
+        if(length(packet) < packet_length)
             disp('Short packet');
             continue;
 
@@ -47,7 +54,17 @@ try
                 val = val - 2^32; % two's complement
             end
             data(i) = val;
+            if(abs(val) > 1e4)
+                err_ctr = err_ctr + 1;
+                err_rate = err_ctr / (length(data_struct) * 8);
+                disp(['Err Rate: ' num2str(err_rate)]);
+%                 disp(['Byte Idx: ' num2str(i)])
+                
+            end
+%             char(packet)
         end
+
+        
 
         % Store the receive time, counter value, LQI, RSSI, and data
         data_struct(end+1) = struct('time', datetime('now'), 'counter_val', counter_val, 'lqi', lqi, 'rssi', rssi, 'data', data);
