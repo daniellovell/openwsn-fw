@@ -38,7 +38,7 @@ t(idx) = [];
 median(data);
 
 figure;
-plot(t, data, '.-');
+% plot(t, data, '.-');
 
 
 % Create a color map that goes from red to green

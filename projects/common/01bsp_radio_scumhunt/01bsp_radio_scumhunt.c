@@ -435,41 +435,52 @@ void print_packet_received(void){
 
 	// Note that PORT_TIMER_WIDTH on OpenMote-b-24ghz is uint32_t 
 	uint32_t counter_val = sctimer_readCounter();
-	IntMasterDisable();
+	
 	// Pack the counter, LQI, and RSSI in first
 	// then the data
+	memset(&app_vars.uart_txFrame[0],0,LENGTH_SERIAL_FRAME);
 	uint8_t uart_head = 0;
 	// Preamble is "UCB"
-	app_vars.uart_txFrame[uart_head++] = 'U';
-	app_vars.uart_txFrame[uart_head++] = 'C';
-	app_vars.uart_txFrame[uart_head++] = 'B';
-	// Counter is 4 bytes
-	app_vars.uart_txFrame[uart_head++] = (uint8_t)(counter_val & 0xFF);
-	app_vars.uart_txFrame[uart_head++] = (uint8_t)((counter_val >> 8) & 0xFF);
-	app_vars.uart_txFrame[uart_head++] = (uint8_t)((counter_val >> 16) & 0xFF);
-	app_vars.uart_txFrame[uart_head++] = (uint8_t)((counter_val >> 24) & 0xFF);
-	// LQI and RSSI are 1 byte each
-	app_vars.uart_txFrame[uart_head++] = app_vars.rxpk_lqi;
-	app_vars.uart_txFrame[uart_head++] = app_vars.rxpk_rssi;
-	
-	for(uint32_t i = 0; i < app_vars.rxpk_len - 2; i += 1)
-	{
-		//int32_t adc_data = app_vars.rxpk_buf[i] + (app_vars.rxpk_buf[i+1]<<8) + (app_vars.rxpk_buf[i+2]<<16) + (app_vars.rxpk_buf[i+3]<<24);
-		app_vars.uart_txFrame[uart_head++] = app_vars.rxpk_buf[i];
-	}
+
+	sprintf((char*)app_vars.uart_txFrame, "%u %u %d", counter_val, app_vars.rxpk_lqi, app_vars.rxpk_rssi);
+	uart_head = strlen((char*)app_vars.uart_txFrame);
 	app_vars.uart_txFrame[uart_head++] = '\r';
 	app_vars.uart_txFrame[uart_head++] = '\n';
 
 	app_vars.uart_done 		 = 0;
 	app_vars.uart_lastTxByte = 0;
 	// send app_vars.uart_txFrame over UART
-	IntMasterEnable();
+	
 	uart_clearTxInterrupts();
 	uart_clearRxInterrupts();
 	uart_enableInterrupts();
 	uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
 	while (app_vars.uart_done==0); // busy wait to finish
 	uart_disableInterrupts();
+
+	
+	for(uint32_t i = 0; i < app_vars.rxpk_len - 2; i += 4)
+	{
+		memset(&app_vars.uart_txFrame[0],0,LENGTH_SERIAL_FRAME);
+		uart_head = 0;
+		int32_t adc_data = app_vars.rxpk_buf[i] + (app_vars.rxpk_buf[i+1]<<8) + (app_vars.rxpk_buf[i+2]<<16) + (app_vars.rxpk_buf[i+3]<<24);
+		sprintf((char*)app_vars.uart_txFrame, "%d", adc_data);
+		uart_head = strlen((char*)app_vars.uart_txFrame);
+		app_vars.uart_txFrame[uart_head++] = '\r';
+		app_vars.uart_txFrame[uart_head++] = '\n';
+
+		app_vars.uart_done 		 = 0;
+		app_vars.uart_lastTxByte = 0;
+		// send app_vars.uart_txFrame over UART
+		
+		uart_clearTxInterrupts();
+		uart_clearRxInterrupts();
+		uart_enableInterrupts();
+		uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
+		while (app_vars.uart_done==0); // busy wait to finish
+		uart_disableInterrupts();
+	}
+
 
 		
 	app_vars.rx_valid_packet_counter++;
