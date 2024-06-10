@@ -10,14 +10,15 @@ find scum channels with an OpenMote :)
 #include "leds.h"
 #include "uart.h"
 #include "sctimer.h"
+#include <stdio.h>
 
 //=========================== defines =========================================
 
-#define LENGTH_PACKET        10+LENGTH_CRC // maximum length is 127 bytes
+#define LENGTH_PACKET        64+LENGTH_CRC // maximum length is 127 bytes
 #define LENGTH_PACKET_TX	 16+LENGTH_CRC
 #define RX_CHANNEL_START     17             // 24ghz: 11 = 2.405GHz, subghz: 11 = 865.325 in  FSK operating mode #1
 #define RX_CHANNEL_MAX		 18
-#define LENGTH_SERIAL_FRAME  40              // length of the serial frame
+#define LENGTH_SERIAL_FRAME  43              // length of the serial frame
 #define TIMER_PERIOD		 (32768>>7)		// (32768>>1) = 500ms @ 32kHz
 #define TIMER_PERIOD_RX		 (32768>>1)		// (32768>>8) = 7.8125ms @ 32kHz -> this is the ping timer when SCuM is transmitting (OpenMote receives)
 #define TIMER_PERIOD_TX		 (32768>>6)		// (32768>>1) = 500ms @ 32kHz -> this is the timeout timer when SCuM is receiving (OpenMote transmits and listens for ack)
@@ -87,6 +88,9 @@ void print_debug(void);
 
 //=========================== main ============================================
 
+// built and bootloaded in conda environment like this:
+// scons board=openmote-b-24ghz toolchain=armgcc bootload=COM17 bsp_radio_scumhunt
+
 /**
 \brief The program starts executing here.
 */
@@ -140,6 +144,7 @@ int mote_main(void) {
 
         if (app_vars.rxpk_done==1) {
 			// if I get here, I just received a packet
+			//print_debug();
 					
 			// packet received, update the timeout timer
 			if (app_vars.rx_tx == 0) { // only update timeout timer if we're in OpenMote RX mode
@@ -175,6 +180,7 @@ int mote_main(void) {
 			}*/
 		}
 
+		/*
 		if (app_vars.txpk_txNow==1) {
 			// freq type only effects on scum port
 			radio_setFrequency(app_vars.rx_channel, FREQ_TX);
@@ -215,6 +221,7 @@ int mote_main(void) {
 			sctimer_setCompare(sctimer_readCounter() + TIMER_PERIOD_TX);
 
 		}
+		*/
     }
 }
 
@@ -282,7 +289,7 @@ void cb_scTimerCompare(void) {
 					break;
 				}
 			}
-			
+			/*
 			if (app_vars.rx_channel == RX_CHANNEL_MAX) { // last channel: switch to OpenMote TX mode (SCuM RX)
 				// switch to TX mode
 				app_vars.rx_tx = 1; // switch to TX mode
@@ -310,6 +317,7 @@ void cb_scTimerCompare(void) {
 				radio_rxEnable();
 				radio_rxNow();
 			}
+			*/
 		}
 	}
 	
@@ -424,54 +432,47 @@ uint8_t cb_uartRxCb(void) {
 
 //===== printing and storing nonsense
 void print_packet_received(void){
-	
-	if ((app_vars.rxpk_buf[6]==0)&&(app_vars.rxpk_buf[7]==0)&&(app_vars.rxpk_buf[8]==0)) {
-		// packet got messed up for unknown reasons?
-		app_vars.uart_txFrame[0]	= 'F';
-		app_vars.uart_txFrame[1]	= 'U';
-		app_vars.uart_txFrame[2]	= 'C';
-		app_vars.uart_txFrame[3]	= 'K';
-		app_vars.uart_txFrame[4]	= ' ';
-		app_vars.uart_txFrame[5]	= 'T';
-		app_vars.uart_txFrame[6]	= 'H';
-		app_vars.uart_txFrame[7]	= 'i';
-		app_vars.uart_txFrame[8]	= 's';
-		app_vars.uart_txFrame[9]	= '\r';
-		app_vars.uart_txFrame[10]	= '\n';
-	}
-	
-	else {
-		// store the received TX settings in the buffer
-		app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][0] = app_vars.rxpk_buf[6];
-		app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][1] = app_vars.rxpk_buf[7];
-		app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][2] = app_vars.rxpk_buf[8];
-		
-		app_vars.uart_txFrame[0]  = app_vars.rxpk_crc + 42;
-		app_vars.uart_txFrame[1]  = app_vars.rx_channel/10 + 48;
-		app_vars.uart_txFrame[2]  = app_vars.rx_channel%10 + 48;
-		app_vars.uart_txFrame[3]  = ' ';
-		app_vars.uart_txFrame[4]  = app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][0]/10 + 48;
-		app_vars.uart_txFrame[5]  = app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][0]%10 + 48;
-		app_vars.uart_txFrame[6]  = ' ';
-		app_vars.uart_txFrame[7]  = app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][1]/10 + 48;
-		app_vars.uart_txFrame[8]  = app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][1]%10 + 48;
-		app_vars.uart_txFrame[9]  = ' ';
-		app_vars.uart_txFrame[10]  = app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][2]/10 + 48;
-		app_vars.uart_txFrame[11]  = app_vars.scum_tx_code_buffer[app_vars.rx_valid_packet_counter][2]%10 + 48;
-		app_vars.uart_txFrame[12]  = ' ';
-		app_vars.uart_txFrame[13]  = app_vars.rxpk_num/1000 + 48;
-		app_vars.uart_txFrame[14] = app_vars.rxpk_num/100 + 48;
-		app_vars.uart_txFrame[15] = (app_vars.rxpk_num - 100*(app_vars.rxpk_num/100))/10 + 48;
-		app_vars.uart_txFrame[16] = app_vars.rxpk_num%10 + 48;
-		app_vars.uart_txFrame[17] = '\r';
-		app_vars.uart_txFrame[18] = '\n';
-		app_vars.uart_done          = 0;
-		app_vars.uart_lastTxByte    = 0;
-		
-		app_vars.rx_valid_packet_counter++;
-		
 
+	// Note that PORT_TIMER_WIDTH on OpenMote-b-24ghz is uint32_t 
+	uint32_t counter_val = sctimer_readCounter();
+	
+	// Pack the counter, LQI, and RSSI in first
+	// then the data
+	memset(&app_vars.uart_txFrame[0],0,LENGTH_SERIAL_FRAME);
+	uint8_t uart_head = 0;
+	// Preamble is "UCB"
+
+	sprintf((char*)app_vars.uart_txFrame, "%u %u %d", counter_val, app_vars.rxpk_lqi, app_vars.rxpk_rssi);
+	uart_head = strlen((char*)app_vars.uart_txFrame);
+	app_vars.uart_txFrame[uart_head++] = '\r';
+	app_vars.uart_txFrame[uart_head++] = '\n';
+
+	app_vars.uart_done 		 = 0;
+	app_vars.uart_lastTxByte = 0;
+	// send app_vars.uart_txFrame over UART
+	
+	uart_clearTxInterrupts();
+	uart_clearRxInterrupts();
+	uart_enableInterrupts();
+	uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
+	while (app_vars.uart_done==0); // busy wait to finish
+	uart_disableInterrupts();
+
+	
+	for(uint32_t i = 0; i < app_vars.rxpk_len - 2; i += 4)
+	{
+		memset(&app_vars.uart_txFrame[0],0,LENGTH_SERIAL_FRAME);
+		uart_head = 0;
+		int32_t adc_data = app_vars.rxpk_buf[i] + (app_vars.rxpk_buf[i+1]<<8) + (app_vars.rxpk_buf[i+2]<<16) + (app_vars.rxpk_buf[i+3]<<24);
+		sprintf((char*)app_vars.uart_txFrame, "%d", adc_data);
+		uart_head = strlen((char*)app_vars.uart_txFrame);
+		app_vars.uart_txFrame[uart_head++] = '\r';
+		app_vars.uart_txFrame[uart_head++] = '\n';
+
+		app_vars.uart_done 		 = 0;
+		app_vars.uart_lastTxByte = 0;
 		// send app_vars.uart_txFrame over UART
+		
 		uart_clearTxInterrupts();
 		uart_clearRxInterrupts();
 		uart_enableInterrupts();
@@ -479,6 +480,10 @@ void print_packet_received(void){
 		while (app_vars.uart_done==0); // busy wait to finish
 		uart_disableInterrupts();
 	}
+
+
+		
+	app_vars.rx_valid_packet_counter++;
 }
 
 void print_rx_timeout(void) {
