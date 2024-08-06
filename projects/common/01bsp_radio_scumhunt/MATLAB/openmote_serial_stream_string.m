@@ -18,13 +18,29 @@ last_print_time = tic;
 % Create a structure to hold the data
 data_struct = struct('time', [], 'counter_val', [], 'lqi', [], 'rssi', [], 'data', []);
 
+% Define plot parameters
+window_size = 1000; % Number of samples to display in the rolling window
+update_interval = 0.1; % Update plot every 0.1 seconds
+last_plot_time = tic;
+
+% Initialize the plot
+figure;
+plot_handle = plot(NaN(1, window_size));
+title('Live Data Plot');
+xlabel('Sample');
+ylabel('Value');
+ylim([-10000, 10000]); % Adjust as needed based on your data range
+grid on;
+
+% Define sample rate and number of samples per packet
+sps = 250;
+Nsample = 8;
+
 % Create a cleanup function
 cleanupObj = onCleanup(@()cleanup(ser, data_struct));
 
 err_ctr = 0;
 pre_buff = '';
-
-Nsample = 8; % Ensure that this number matches the SCuM-3C firmware
 
 try
     while true
@@ -65,6 +81,33 @@ try
 
         % Store the receive time, counter value, LQI, RSSI, and data
         data_struct(end+1) = struct('time', datetime('now'), 'counter_val', counter_val, 'lqi', lqi, 'rssi', rssi, 'data', data);
+
+        % Update the plot every update_interval seconds
+        if toc(last_plot_time) >= update_interval
+            % Get the last window_size samples
+            plot_data = [data_struct(max(1, end-window_size+1):end).data];
+            counter_vals = [data_struct(max(1, end-window_size+1):end).counter_val];
+            
+            % Calculate time vector
+            tvec = (0:1/sps:(Nsample-1)/sps)';
+            t = [];
+            for i = 1:length(counter_vals)
+                t = [t; tvec + (counter_vals(i) / 32.768e3)];
+            end
+            
+            % Ensure plot_data and t have the same length
+            twindow = min(numel(plot_data), window_size);
+            plot_data = plot_data(end-twindow+1:end);
+            t = t(end-twindow+1:end);
+            
+            % Update the plot
+            set(plot_handle, 'YData', plot_data, 'XData', t);
+            xlim([t(1), t(end)]); % Adjust x-axis limits
+            drawnow;
+            
+            last_plot_time = tic;
+        end
+
 
         % Print a message every second to indicate that data is being received
         if toc(last_print_time) >= 1
