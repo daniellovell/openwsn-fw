@@ -7,7 +7,7 @@ if(exist('ser', 'var'))
 end
 
 % Create serial object
-ser = serialport('COM24', 1000000, 'Timeout', 60);
+ser = serialport('COM8', 921600, 'Timeout', 60);
 
 % Set the expected packet length (number of bytes)
 packet_length = 38; % 4 bytes for counter_val, 1 byte each for lqi and rssi, and 32 bytes for data
@@ -24,6 +24,8 @@ cleanupObj = onCleanup(@()cleanup(ser, data_struct));
 err_ctr = 0;
 pre_buff = '';
 
+Nsample = 8; % Ensure that this number matches the SCuM-3C firmware
+
 try
     while true
         
@@ -38,8 +40,8 @@ try
 
             lqi = str2double(words(2));
             rssi = str2double(words(3));
-            data = zeros(1, 8);
-            for i = 1:8
+            data = zeros(1, Nsample);
+            for i = 1:Nsample
                 line = readline(ser);
 %                 disp(line);
                 words = split(line, {' ', '\n'});

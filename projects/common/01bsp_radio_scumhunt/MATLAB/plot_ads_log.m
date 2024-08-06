@@ -18,12 +18,13 @@ lqi = [];
 rssi = [];
 t = [];
 sps = 250;
-tvec = 0:1/sps:(0+7/sps);
+Nsample = 8;
+tvec = 0:1/sps:(0+(Nsample-1)/sps);
 % Extract the time, data, and LQI from the structure
 for i = 2:num_data_points
     data = [data, data_struct(i).data(:)'];
-    lqi = [lqi, repmat(data_struct(i).lqi, 1, 8)];
-    rssi = [rssi, repmat(data_struct(i).rssi, 1, 8)];
+    lqi = [lqi, repmat(data_struct(i).lqi, 1, Nsample)];
+    rssi = [rssi, repmat(data_struct(i).rssi, 1, Nsample)];
     t = [t, tvec + (data_struct(i).counter_val / 32.768e3)];
 end
 
