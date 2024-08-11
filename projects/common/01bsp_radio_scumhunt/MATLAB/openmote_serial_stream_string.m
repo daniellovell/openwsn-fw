@@ -44,38 +44,38 @@ pre_buff = '';
 
 try
     while true
-        
         % Read a full line from the serial port
         line = readline(ser);
         words = split(line, {' ', '\n'});
         words = words(~cellfun(@isempty,words));
 
-        
-        if(length(words) == 3)
+        if length(words) == 3
+            % Parse counter, LQI, and RSSI as before
             counter_val = str2double(words(1));
-
             lqi = str2double(words(2));
             rssi = str2double(words(3));
+
+            % Read ADC data
             data = zeros(1, Nsample);
+            adc_line = readline(ser);
+            adc_line = regexprep(adc_line, '[^a-zA-Z0-9]', '');
+            adc_hex = reshape(adc_line{:}, 8, []); % 8 characters per sample (4 bytes)
             for i = 1:Nsample
-                line = readline(ser);
-%                 disp(line);
-                words = split(line, {' ', '\n'});
-                words = words(~cellfun(@isempty,words));
-                if(length(words) > 1)
-                    disp('Invalid ADC data line');
-                end
-                val = str2double(words(1));
-                data(i) = val;
-                if(abs(val) > 1e4)
-                    err_ctr = err_ctr + 1;
-                    err_rate = err_ctr / (length(data_struct) * 8);
-                    disp(['Err Rate: ' num2str(err_rate)]);
-               
-                end
+                sample_hex = adc_hex(:, i)';
+                sample_bytes = hex2dec(reshape(sample_hex, 2, [])');
+                sample_bytes = flip(sample_bytes);
+                sample_value = typecast(uint8(sample_bytes), 'int32');
+                data(i) = double(sample_value);
             end
-            
+
+            % Error checking
+            if any(abs(data) > 1e4)
+                err_ctr = err_ctr + 1;
+                err_rate = err_ctr / (length(data_struct) * Nsample);
+                disp(['Err Rate: ' num2str(err_rate)]);
+            end
         else
+            disp('Invalid packet structure');
             continue;
         end
 

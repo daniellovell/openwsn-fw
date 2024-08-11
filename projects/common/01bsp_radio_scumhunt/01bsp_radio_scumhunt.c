@@ -17,8 +17,8 @@ find scum channels with an OpenMote :)
 #define LENGTH_PACKET        64+LENGTH_CRC // maximum length is 127 bytes
 #define LENGTH_PACKET_TX	 16+LENGTH_CRC
 #define RX_CHANNEL_START     17             // 24ghz: 11 = 2.405GHz, subghz: 11 = 865.325 in  FSK operating mode #1
-#define RX_CHANNEL_MAX		 18
-#define LENGTH_SERIAL_FRAME  43              // length of the serial frame
+#define RX_CHANNEL_MAX		 17
+#define LENGTH_SERIAL_FRAME  66              // length of the serial frame
 #define TIMER_PERIOD		 (32768>>7)		// (32768>>1) = 500ms @ 32kHz
 #define TIMER_PERIOD_RX		 (32768>>1)		// (32768>>8) = 7.8125ms @ 32kHz -> this is the ping timer when SCuM is transmitting (OpenMote receives)
 #define TIMER_PERIOD_TX		 (32768>>6)		// (32768>>1) = 500ms @ 32kHz -> this is the timeout timer when SCuM is receiving (OpenMote transmits and listens for ack)
@@ -430,8 +430,63 @@ uint8_t cb_uartRxCb(void) {
     return 1;
 }
 
+void print_calibration_packet(void)
+{
+    // Print coarse, medium, and fine codes over UART
+    memset(&app_vars.uart_txFrame[0], 0, LENGTH_SERIAL_FRAME);
+    sprintf((char*)app_vars.uart_txFrame, "coarse: %u med: %u fine: %u\r\n", 
+            app_vars.rxpk_buf[0], app_vars.rxpk_buf[1], app_vars.rxpk_buf[2]);
+
+    app_vars.uart_done = 0;
+    app_vars.uart_lastTxByte = 0;
+
+    uart_clearTxInterrupts();
+    uart_clearRxInterrupts();
+    uart_enableInterrupts();
+    uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
+    while (app_vars.uart_done == 0); // busy wait to finish
+    uart_disableInterrupts();
+
+}
+
+void print_rxpk_len(void)
+{
+    // Print the received packet length over UART
+    memset(&app_vars.uart_txFrame[0], 0, LENGTH_SERIAL_FRAME);
+    sprintf((char*)app_vars.uart_txFrame, "Packet length: %u\r\n", app_vars.rxpk_len);
+
+    app_vars.uart_done = 0;
+    app_vars.uart_lastTxByte = 0;
+
+    uart_clearTxInterrupts();
+    uart_clearRxInterrupts();
+    uart_enableInterrupts();
+    uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
+    while (app_vars.uart_done == 0); // busy wait to finish
+    uart_disableInterrupts();
+}
+
 //===== printing and storing nonsense
 void print_packet_received(void){
+
+	/*
+	print_rxpk_len();
+	return;
+	print_calibration_packet();
+	// Special case when doing open-loop calibration of SCuM
+	if(app_vars.rxpk_len == 18)
+	{
+		
+		app_vars.rx_valid_packet_counter++;
+		return;
+	}
+	*/
+
+	if(app_vars.rxpk_len != 34)
+	{
+		print_calibration_packet();
+		return;
+	}
 
 	// Note that PORT_TIMER_WIDTH on OpenMote-b-24ghz is uint32_t 
 	uint32_t counter_val = sctimer_readCounter();
@@ -459,27 +514,30 @@ void print_packet_received(void){
 	uart_disableInterrupts();
 
 	
-	for(uint32_t i = 0; i < app_vars.rxpk_len - 2; i += 4)
-	{
-		memset(&app_vars.uart_txFrame[0],0,LENGTH_SERIAL_FRAME);
-		uart_head = 0;
-		int32_t adc_data = app_vars.rxpk_buf[i] + (app_vars.rxpk_buf[i+1]<<8) + (app_vars.rxpk_buf[i+2]<<16) + (app_vars.rxpk_buf[i+3]<<24);
-		sprintf((char*)app_vars.uart_txFrame, "%d", adc_data);
-		uart_head = strlen((char*)app_vars.uart_txFrame);
-		app_vars.uart_txFrame[uart_head++] = '\r';
-		app_vars.uart_txFrame[uart_head++] = '\n';
+	memset(&app_vars.uart_txFrame[0], 0, LENGTH_SERIAL_FRAME);
+    uart_head = 0;
 
-		app_vars.uart_done 		 = 0;
-		app_vars.uart_lastTxByte = 0;
-		// send app_vars.uart_txFrame over UART
-		
-		uart_clearTxInterrupts();
-		uart_clearRxInterrupts();
-		uart_enableInterrupts();
-		uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
-		while (app_vars.uart_done==0); // busy wait to finish
-		uart_disableInterrupts();
-	}
+    for (uint32_t i = 0; i < app_vars.rxpk_len - 2; i += 4) {
+        int32_t adc_data = app_vars.rxpk_buf[i] | 
+                            (app_vars.rxpk_buf[i+1] << 8) | 
+                            (app_vars.rxpk_buf[i+2] << 16) | 
+                            (app_vars.rxpk_buf[i+3] << 24);
+        uart_head += sprintf((char*)&app_vars.uart_txFrame[uart_head], "%08X", adc_data);
+    }
+
+    // Add newline at the end
+	app_vars.uart_txFrame[uart_head++] = '\r';
+    app_vars.uart_txFrame[uart_head++] = '\n';
+
+    // Send the entire frame over UART
+    app_vars.uart_done = 0;
+    app_vars.uart_lastTxByte = 0;
+    uart_clearTxInterrupts();
+    uart_clearRxInterrupts();
+    uart_enableInterrupts();
+    uart_writeByte(app_vars.uart_txFrame[app_vars.uart_lastTxByte]);
+    while (app_vars.uart_done == 0); // busy wait to finish
+    uart_disableInterrupts();
 
 
 		
