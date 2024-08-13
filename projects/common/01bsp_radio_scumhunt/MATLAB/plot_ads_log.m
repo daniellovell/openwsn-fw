@@ -8,7 +8,15 @@ if(exist('ser', 'var'))
     save('data.mat', 'data_struct');
 end
 % Load the data
-load('data.mat');
+[filename, pathname] = uigetfile('*.mat', 'Select the data file');
+if isequal(filename,0) || isequal(pathname,0)
+   disp('User selected Cancel')
+   return;
+else
+   fullpath = fullfile(pathname, filename);
+   load(fullpath);
+   disp(['User selected ', fullpath]);
+end
 
 % Get the number of data points
 num_data_points = length(data_struct);
@@ -28,6 +36,8 @@ for i = 2:num_data_points
     t = [t, tvec + (data_struct(i).counter_val / 32.768e3)];
 end
 
+% Shift time to start at 0
+t = t - t(1);
 
 
 % Normalize LQI to the range [0, 1]
@@ -54,6 +64,7 @@ rssi_norm = round(rssi_norm * (255 / max(rssi_norm)));
 % Plot the data
 plot(t, data, 'k-');
 hold on;
+grid on;
 scatter(t, data, 10, cmap(rssi_norm+1, :), 'filled');
 
 
@@ -61,14 +72,17 @@ scatter(t, data, 10, cmap(rssi_norm+1, :), 'filled');
 colormap(cmap);
 
 
-
 % Add a color bar
 colorbar;
+% Add a color bar with a title
+c = colorbar;
+c.Label.String = 'Locally Normalized RSSI';
 
 % Set the labels
 xlabel('Time (s)');
-ylabel('Data');
-title('Data vs. Time colored by RSSI');
+ylabel('ADC Data');
+s = sprintf("Gradient Only (w/ RFE Protection)\nData Received vs. Time colored by RSSI");
+title(s);
 
 % Hold off the plot
 hold off;
