@@ -29,7 +29,7 @@ plot_handle = plot(NaN(1, window_size));
 title('Live Data Plot');
 xlabel('Sample');
 ylabel('Value');
-ylim([-10000, 10000]); % Adjust as needed based on your data range
+ylim([-1000000, 1000000]); % Adjust as needed based on your data range
 grid on;
 
 % Define sample rate and number of samples per packet
