@@ -48,7 +48,8 @@ rssi(idx) = [];
 t(idx) = [];
 median(data);
 
-figure;
+f = figure;
+
 % plot(t, data, '.-');
 
 
@@ -56,17 +57,21 @@ figure;
 cmap = [linspace(1, 0, 256)', linspace(0, 1, 256)', zeros(256, 1)];
 
 % Create a new figure
-figure;
+%figure;
 
-rssi_norm = (rssi - min(rssi));
-rssi_norm = round(rssi_norm * (255 / max(rssi_norm)));
+min_rssi = -127;
+max_rssi = 4;
+% rssi_norm = (rssi - min_rssi);
+% rssi_norm = round(rssi_norm * (255 / max_rssi));
+% Dont normalize the RSSI
+rssi_norm = rssi;
 
 % Plot the data
 plot(t, data, 'k-');
 hold on;
 grid on;
-scatter(t, data, 10, cmap(rssi_norm+1, :), 'filled');
-
+clim([(min(rssi_norm)-5) (max(rssi_norm))+1]);
+scatter(t, data, 10, rssi_norm, 'filled');
 
 % Set the color map
 colormap(cmap);
@@ -76,13 +81,47 @@ colormap(cmap);
 colorbar;
 % Add a color bar with a title
 c = colorbar;
-c.Label.String = 'Locally Normalized RSSI';
+c.Label.String = 'RSSI (dBm)';
 
 % Set the labels
 xlabel('Time (s)');
 ylabel('ADC Data');
-s = sprintf("Gradient Only (w/ RFE Protection)\nData Received vs. Time colored by RSSI");
+s = sprintf("B0 field only baseline\nData Received vs. Time colored by RSSI");
 title(s);
 
 % Hold off the plot
 hold off;
+fontsize(gcf, 40, "points");
+
+% Power Spectral Density Analysis
+figure;
+
+% Ensure data is a column vector
+data = data(:);
+
+% Calculate PSD using pwelch
+[pxx, f] = pwelch(data, [], [], [], sps);
+
+% Calculate SNR manually
+signal_power = sum(pxx);
+noise_power = var(data - mean(data));
+snr_value = 20 * log10(signal_power / noise_power);
+
+% Plot PSD
+plot(f, 20*log10(pxx));
+grid on;
+
+% Set labels and title
+xlabel('Frequency (Hz)');
+ylabel('Power/Frequency (dB/Hz)');
+title(sprintf('Power Spectral Density (SNR: %.2f dB)', snr_value));
+
+% Adjust font size
+fontsize(gcf, 40, "points");
+
+% %%
+% figure;
+% [Sxx, F] = periodogram(data,w,numel(data),Fs,'power');
+% w = hann(numel(data));
+% rbw = enbw(w, sps);
+% snr(Sxx, F, rbw, 'power');
