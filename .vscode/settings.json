@@ -1,0 +1,28 @@
+{
+    "files.associations": {
+        "*.scala": "scala",
+        "*.va": "verilog",
+        "*.cdl": "spice",
+        "hw_rfcore_sfr.h": "c"
+    },
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#a3fc80",
+        "activityBar.background": "#a3fc80",
+        "activityBar.foreground": "#15202b",
+        "activityBar.inactiveForeground": "#15202b99",
+        "activityBarBadge.background": "#638efb",
+        "activityBarBadge.foreground": "#15202b",
+        "commandCenter.border": "#15202b99",
+        "sash.hoverBorder": "#a3fc80",
+        "statusBar.background": "#7ffb4e",
+        "statusBar.foreground": "#15202b",
+        "statusBarItem.hoverBackground": "#5bfa1c",
+        "statusBarItem.remoteBackground": "#7ffb4e",
+        "statusBarItem.remoteForeground": "#15202b",
+        "titleBar.activeBackground": "#7ffb4e",
+        "titleBar.activeForeground": "#15202b",
+        "titleBar.inactiveBackground": "#7ffb4e99",
+        "titleBar.inactiveForeground": "#15202b99"
+    },
+    "peacock.color": "#7ffb4e"
+}

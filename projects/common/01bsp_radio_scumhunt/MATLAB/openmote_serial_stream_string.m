@@ -6,6 +6,19 @@ if(exist('ser', 'var'))
     clear ser;
 end
 
+avdd = 5.0;      % Positive supply voltage
+avss = 0;     % Negative supply voltage
+gain = 8;       % PGA gain
+vmax_diff = 300e-3; % Maximum differential input voltage
+vref = 4.5;  % Reference voltage
+% Define sample rate and number of samples per packet
+sps = 1000;
+Nsample = 8;
+
+[cm_min, cm_max] = ads1299_common_mode_range(avdd, avss, gain, vmax_diff);
+
+full_scale = ads1299_differential_range(vref, gain);
+
 % Create serial object
 ser = serialport('COM8', 921600, 'Timeout', 60);
 
@@ -26,15 +39,13 @@ last_plot_time = tic;
 % Initialize the plot
 figure;
 plot_handle = plot(NaN(1, window_size));
-title('Live Data Plot');
-xlabel('Sample');
-ylabel('Value');
-ylim([-1000000, 1000000]); % Adjust as needed based on your data range
+title('Live ADC Voltage');
+xlabel('Time (s)');
+ylabel('Voltage (mV)');
+ylim([-300, 300]); % Adjusted for typical voltage range in mV with gain=2
 grid on;
 
-% Define sample rate and number of samples per packet
-sps = 250;
-Nsample = 8;
+
 
 % Create a cleanup function
 cleanupObj = onCleanup(@()cleanup(ser, data_struct));
@@ -57,6 +68,7 @@ try
 
             % Read ADC data
             data = zeros(1, Nsample);
+            voltages = zeros(1, Nsample);  % Add array for voltage values
             adc_line = readline(ser);
             adc_line = regexprep(adc_line, '[^a-zA-Z0-9]', '');
             adc_hex = reshape(adc_line{:}, 8, []); % 8 characters per sample (4 bytes)
@@ -66,10 +78,14 @@ try
                 sample_bytes = flip(sample_bytes);
                 sample_value = typecast(uint8(sample_bytes), 'int32');
                 data(i) = double(sample_value);
+                
+                % Convert to voltage using the dedicated function
+                voltages(i) = ads1299_code_to_voltage(data(i), vref, gain);
+                % [voltages(i), filter_states] = filter(b_notch, a_notch, voltages(i), filter_states);
             end
 
-            % Error checking
-            if any(abs(data) > 1e4)
+            % Error checking (using voltages)
+            if any(abs(voltages) > 1)  % Check for voltages > 1V
                 err_ctr = err_ctr + 1;
                 err_rate = err_ctr / (length(data_struct) * Nsample);
                 disp(['Err Rate: ' num2str(err_rate)]);
@@ -80,13 +96,16 @@ try
         end
 
         % Store the receive time, counter value, LQI, RSSI, and data
-        data_struct(end+1) = struct('time', datetime('now'), 'counter_val', counter_val, 'lqi', lqi, 'rssi', rssi, 'data', data);
+        data_struct(end+1) = struct('time', datetime('now'), 'counter_val', counter_val, 'lqi', lqi, 'rssi', rssi, 'data', data, 'voltages', voltages);
 
         % Update the plot every update_interval seconds
         if toc(last_plot_time) >= update_interval
             % Get the last window_size samples
             plot_data = [data_struct(max(1, end-window_size+1):end).data];
             counter_vals = [data_struct(max(1, end-window_size+1):end).counter_val];
+            
+            % Convert ADC codes to voltage (mV)
+            plot_data_voltage = ads1299_code_to_voltage(plot_data, vref, gain) * 1000;
             
             % Calculate time vector
             tvec = (0:1/sps:(Nsample-1)/sps)';
@@ -96,12 +115,12 @@ try
             end
             
             % Ensure plot_data and t have the same length
-            twindow = min(numel(plot_data), window_size);
-            plot_data = plot_data(end-twindow+1:end);
+            twindow = min(numel(plot_data_voltage), window_size);
+            plot_data_voltage = plot_data_voltage(end-twindow+1:end);
             t = t(end-twindow+1:end);
             
             % Update the plot
-            set(plot_handle, 'YData', plot_data, 'XData', t);
+            set(plot_handle, 'YData', plot_data_voltage, 'XData', t);
             xlim([t(1), t(end)]); % Adjust x-axis limits
             drawnow;
             
@@ -133,4 +152,15 @@ function cleanup(ser, data_struct)
     % Close the serial port
     ser.delete();
     clear ser;
+end
+function [b, a] = designNotchFilter(notch_freq, Q, fs)
+    w0 = notch_freq/(fs/2);  % Normalized frequency
+    bw = w0/Q;               % Bandwidth
+    
+    % Compute filter coefficients
+    alpha = sin(pi*w0)/(2*Q);
+    cosw0 = cos(pi*w0);
+    
+    b = [1, -2*cosw0, 1];
+    a = [1+alpha, -2*cosw0, 1-alpha];
 end
