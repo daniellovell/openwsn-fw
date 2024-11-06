@@ -96,7 +96,7 @@ try
         end
 
         % Store the receive time, counter value, LQI, RSSI, and data
-        data_struct(end+1) = struct('time', datetime('now'), 'counter_val', counter_val, 'lqi', lqi, 'rssi', rssi, 'data', data, 'voltages', voltages);
+        data_struct(end+1) = struct('time', datetime('now'), 'counter_val', counter_val, 'lqi', lqi, 'rssi', rssi, 'data', data);
 
         % Update the plot every update_interval seconds
         if toc(last_plot_time) >= update_interval

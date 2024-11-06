@@ -68,6 +68,15 @@ cutoff_freq = 0.1;  % 1 Hz cutoff
 nyquist_freq = sps/2;
 [b, a] = butter(order, cutoff_freq/nyquist_freq, 'high');
 
+% Design and apply low-pass filter
+order_lp = 6;  % 4th order Butterworth filter
+cutoff_freq_lp = 50;  % 75 Hz cutoff
+[b_lp, a_lp] = butter(order_lp, cutoff_freq_lp/nyquist_freq, 'low');
+
+% Apply zero-phase filtering to avoid phase distortion
+voltages = filtfilt(b_lp, a_lp, voltages);
+
+
 % Apply zero-phase filtering to avoid phase distortion
 voltages_filtered = filtfilt(b, a, voltages);
 
@@ -102,7 +111,7 @@ plot(t, voltages_mv, 'k');
 hold on;
 grid on;
 clim([(min(rssi_norm)-5) (max(rssi_norm))+1]);
-scatter(t, voltages_mv, 10, rssi_norm, 'filled');
+% scatter(t, voltages_mv, 10, rssi_norm, 'filled');
 
 % Set the color map
 colormap(cmap);
@@ -258,7 +267,7 @@ else
             continue;
         end
         corrupted_time = packet_times(idx + 1);  % The packet after the corrupted interval
-        if isnan(corrupted_time) || ~isfinite(corrupted_time) || corrupted_time < 0
+        if any(isnan(corrupted_time)) || any(~isfinite(corrupted_time)) || any(corrupted_time < 0)
             warning('Invalid corrupted_time detected: %.4f. Skipping...', corrupted_time);
             continue;
         end
